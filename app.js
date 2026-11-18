@@ -244,16 +244,53 @@ function zoomMap(factor, anchor) {
 function enableMapPan() {
   const canvas = document.querySelector(".map-canvas");
   if (!canvas) return;
+  const pointers = new Map();
   let drag = null;
+  let pinch = null;
+
+  const mapPoint = (clientX, clientY, view) => {
+    const bounds = canvas.getBoundingClientRect();
+    const scale = Math.min(bounds.width / view.width, bounds.height / view.height);
+    const offsetX = (bounds.width - view.width * scale) / 2;
+    const offsetY = (bounds.height - view.height * scale) / 2;
+    return { x: view.x + (clientX - bounds.left - offsetX) / scale, y: view.y + (clientY - bounds.top - offsetY) / scale };
+  };
+  const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
   canvas.addEventListener("pointerdown", (event) => {
-    if (event.target.closest(".map-zoom-controls") || !event.isPrimary) return;
+    if (event.target.closest(".map-zoom-controls")) return;
     suppressMapClick = false;
-    drag = { x: event.clientX, y: event.clientY, view: { ...mapView }, moved: false };
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size === 1) {
+      drag = { ...[...pointers.values()][0], view: { ...mapView }, moved: false };
+    } else if (pointers.size === 2) {
+      const [a, b] = pointers.values();
+      const center = midpoint(a, b);
+      pinch = { distance: Math.max(1, distance(a, b)), view: { ...mapView }, anchor: mapPoint(center.x, center.y, mapView) };
+      for (const pointerId of pointers.keys()) canvas.setPointerCapture(pointerId);
+      drag = null;
+    }
   });
+
   canvas.addEventListener("pointermove", (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size >= 2 && pinch) {
+      const [a, b] = pointers.values();
+      const center = midpoint(a, b);
+      const width = Math.min(MAP_WIDTH, Math.max(110, pinch.view.width * pinch.distance / Math.max(1, distance(a, b))));
+      const height = width * MAP_HEIGHT / MAP_WIDTH;
+      const bounds = canvas.getBoundingClientRect();
+      const scale = Math.min(bounds.width / width, bounds.height / height);
+      const pointX = (center.x - bounds.left - (bounds.width - width * scale) / 2) / scale;
+      const pointY = (center.y - bounds.top - (bounds.height - height * scale) / 2) / scale;
+      setMapView({ width, height, x: pinch.anchor.x - pointX, y: pinch.anchor.y - pointY });
+      canvas.classList.add("is-panning");
+      return;
+    }
     if (!drag) return;
-    const map = canvas.querySelector(".quiz-map");
-    const bounds = map.getBoundingClientRect();
+    const bounds = canvas.getBoundingClientRect();
     const scale = Math.min(bounds.width / drag.view.width, bounds.height / drag.view.height);
     const dx = (event.clientX - drag.x) / scale;
     const dy = (event.clientY - drag.y) / scale;
@@ -263,17 +300,20 @@ function enableMapPan() {
       setMapView({ ...drag.view, x: drag.view.x - dx, y: drag.view.y - dy });
     }
   });
-  const endPan = () => {
-    if (!drag) return;
-    if (drag.moved) {
+
+  const endPointer = (event) => {
+    pointers.delete(event.pointerId);
+    const moved = Boolean(drag?.moved || pinch);
+    if (pinch) pinch = null;
+    if (moved) {
       suppressMapClick = true;
       setTimeout(() => { suppressMapClick = false; }, 0);
     }
-    drag = null;
-    canvas.classList.remove("is-panning");
+    drag = pointers.size === 1 ? { ...[...pointers.values()][0], view: { ...mapView }, moved: false } : null;
+    if (!pointers.size) canvas.classList.remove("is-panning");
   };
-  canvas.addEventListener("pointerup", endPan);
-  canvas.addEventListener("pointercancel", endPan);
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
 }
 
 function mapLabels(question) {
