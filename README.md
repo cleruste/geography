@@ -1,6 +1,6 @@
 # Atlas
 
-A static, dependency-free geography quiz interface. The current release includes the United States with 50 clickable states and 30 major cities.
+A static geography quiz covering US states and cities.
 
 ## Run locally
 
