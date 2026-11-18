@@ -218,15 +218,6 @@ function setMapView(view = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT })
   if (map) map.setAttribute("viewBox", `${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}`);
 }
 
-function focusQuestion(question) {
-  const item = (game.mode === "states" ? playableStates : cities).find((entry) => entry.id === question.id);
-  if (!item) return setMapView();
-  const point = game.mode === "states" ? item.centroid : item.coordinates;
-  const width = game.mode === "states" ? 420 : 360;
-  const height = width * MAP_HEIGHT / MAP_WIDTH;
-  setMapView({ x: point[0] - width / 2, y: point[1] - height / 2, width, height });
-}
-
 function zoomMap(factor, anchor) {
   const minWidth = 110;
   const maxWidth = MAP_WIDTH;
@@ -483,7 +474,7 @@ function renderQuiz() {
       </div>
     </div>`;
   if (game.answered) setMapView(mapView);
-  else focusQuestion(question);
+  else setMapView();
   enableMapPan();
 }
 
