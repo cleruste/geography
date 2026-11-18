@@ -1,6 +1,8 @@
 const regionCatalog = {
-  us: { id: "us", name: "United States", continent: "North America", unit: "state", units: "states", singular: "state", plural: "states", data: window.ATLAS_DATA },
-  china: { id: "china", name: "China", continent: "Asia", unit: "province", units: "province-level regions", singular: "province", plural: "provinces", data: window.CHINA_ATLAS_DATA }
+  us: { id: "us", name: "United States", continent: "North America", unit: "state", plural: "states", citySingular: "city", cityPlural: "cities", data: window.ATLAS_DATA },
+  china: { id: "china", name: "China", continent: "Asia", unit: "province", plural: "provinces", citySingular: "city", cityPlural: "cities", data: window.CHINA_ATLAS_DATA },
+  europe: { id: "europe", name: "Europe", continent: "Europe", unit: "country", plural: "countries", citySingular: "capital", cityPlural: "capitals", data: window.EUROPE_ATLAS_DATA },
+  france: { id: "france", name: "France", continent: "Europe", unit: "department", plural: "departments", citySingular: "chef-lieu", cityPlural: "chef-lieux", data: window.FRANCE_ATLAS_DATA }
 };
 let activeRegion = regionCatalog.us;
 let states = activeRegion.data.states;
@@ -91,12 +93,13 @@ function setRegion(id) {
 function regionCard(id, number, data) {
   const config = regionCatalog[id];
   const count = data.states.filter((state) => state.isState).length;
-  const label = id === "china" ? "provinces" : "states";
+  const label = config.plural;
+  const cityPlural = config.cityPlural;
   return `<article class="region-card us-card ${id === "china" ? "china-card" : ""}">
     <div class="region-card-content"><span class="region-number">${number} / ${config.continent.toUpperCase()}</span>
       <span class="pill pill-ready">${icon("spark")} Available</span><h3>${config.name}</h3>
-      <p>Find ${label} and cities on the map.</p>
-      <div class="region-tags"><span class="region-tag">${count} ${label}</span><span class="region-tag">${data.cities.length} cities</span></div>
+      <p>Find ${label} and ${cityPlural} on the map.</p>
+      <div class="region-tags"><span class="region-tag">${count} ${label}</span><span class="region-tag">${data.cities.length} ${cityPlural}</span></div>
       <button class="primary-button" data-action="select-region" data-region="${id}">Choose mode ${icon("arrow-right")}</button>
     </div><div class="us-map-preview">${previewMap(data)}<span class="preview-caption">${config.name}</span></div>
   </article>`;
@@ -120,18 +123,16 @@ function renderRegions() {
       </section>
 
       <section aria-labelledby="region-heading">
-        <div class="section-heading"><h2 id="region-heading">Choose a region</h2><span>2 regions available</span></div>
+        <div class="section-heading"><h2 id="region-heading">Choose a region</h2><span>${Object.keys(regionCatalog).length} regions available</span></div>
         <div class="region-grid region-pair">
-          ${regionCard("us", "01", regionCatalog.us.data)}
-          ${regionCard("china", "02", regionCatalog.china.data)}
+          ${Object.values(regionCatalog).map((region, index) => regionCard(region.id, String(index + 1).padStart(2, "0"), region.data)).join("")}
         </div>
-        <div class="more-regions">${icon("globe")} Europe is not available yet.</div>
       </section>
 
       <section class="how-section" aria-labelledby="how-heading">
         <div class="section-heading"><h2 id="how-heading">How to play</h2><span>Three steps</span></div>
         <div class="how-grid">
-          <div class="how-step"><span class="step-number">01</span><div><h3>Choose a mode</h3><p>Choose state or province mode, or city mode.</p></div></div>
+          <div class="how-step"><span class="step-number">01</span><div><h3>Choose a mode</h3><p>Choose a boundary or city quiz.</p></div></div>
           <div class="how-step"><span class="step-number">02</span><div><h3>Find the place</h3><p>Read the place name and select it on the map.</p></div></div>
           <div class="how-step"><span class="step-number">03</span><div><h3>Review the answer</h3><p>Labels appear after each answer.</p></div></div>
         </div>
@@ -149,14 +150,14 @@ function renderSetup() {
       <section class="setup-heading">
         <div class="eyebrow">Choose a mode</div>
         <h1><em>${activeRegion.name}</em></h1>
-        <p>Choose ${activeRegion.plural} or cities.</p>
+        <p>Choose ${activeRegion.plural} or ${activeRegion.cityPlural}.</p>
       </section>
       <div class="setup-grid">
         <div class="setup-map-card">
           <span class="setup-map-label">${icon("map")} ${activeRegion.name}</span>
           ${previewMap()}
           <div class="setup-map-footer">
-            <div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>Major city</span></div>
+            <div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>${activeRegion.citySingular}</span></div>
             <span>${playableStates.length} ${activeRegion.plural} · ${cities.length} cities</span>
           </div>
         </div>
@@ -171,7 +172,7 @@ function renderSetup() {
             </button>
             <button class="mode-option ${selectedMode === "cities" ? "selected" : ""}" data-action="select-mode" data-mode="cities" aria-pressed="${selectedMode === "cities"}">
               <span class="mode-option-icon">${icon("pin")}</span>
-              <span><strong>Find the city</strong><small>Locate ${cities.length} cities.</small></span>
+              <span><strong>Find the ${activeRegion.citySingular}</strong><small>Locate ${cities.length} ${activeRegion.cityPlural}.</small></span>
               <span class="mode-radio"></span>
             </button>
           </div>
@@ -422,8 +423,7 @@ function answerLocation(id) {
 function renderQuiz() {
   currentView = "quiz";
   const question = game.questions[game.turn];
-  const locationLabel = game.mode === "states" ? activeRegion.unit : "city";
-  const locationPlural = game.mode === "states" ? activeRegion.plural : "cities";
+  const locationPlural = game.mode === "states" ? activeRegion.plural : activeRegion.cityPlural;
   const latestAnswer = game.answers.at(-1);
   const isLastTurn = game.turn === TOTAL_TURNS - 1;
   const progress = Array.from({ length: TOTAL_TURNS }, (_, index) => {
@@ -444,7 +444,7 @@ function renderQuiz() {
       </div>
       <div class="game-grid">
         <section class="map-card" aria-label="Quiz map">
-          <div class="map-toolbar"><span class="map-instruction">${icon("target")} ${game.answered ? "Explore the revealed map" : `Click ${game.mode === "states" ? `a ${activeRegion.unit}` : "a red city dot"} to answer`}</span><span class="map-counter">${activeRegion.name} / ${locationPlural}</span></div>
+          <div class="map-toolbar"><span class="map-instruction">${icon("target")} ${game.answered ? "Explore the revealed map" : `Click ${game.mode === "states" ? `a ${activeRegion.unit}` : `a red ${activeRegion.citySingular} dot`} to answer`}</span><span class="map-counter">${activeRegion.name} / ${locationPlural}</span></div>
           <div class="map-canvas">
             ${quizMap(question)}
             <div class="map-zoom-controls" role="group" aria-label="Map zoom">
@@ -453,15 +453,15 @@ function renderQuiz() {
               <button class="map-zoom-button zoom-reset" data-action="zoom-reset">Full map</button>
             </div>
           </div>
-          <div class="map-bottom"><div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>Major city</span></div><span class="map-bottom-note">${game.answered ? "Labels revealed · Correct answer highlighted" : "Labels appear after your answer"}</span></div>
+          <div class="map-bottom"><div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>${activeRegion.citySingular}</span></div><span class="map-bottom-note">${game.answered ? "Labels revealed · Correct answer highlighted" : "Labels appear after your answer"}</span></div>
         </section>
         <aside class="question-column">
           <section class="question-card">
-            <div class="question-meta"><span>Question <strong>${String(game.turn + 1).padStart(2, "0")}</strong> of ${TOTAL_TURNS}</span><span>${game.mode === "states" ? `${activeRegion.unit} finder` : "City finder"}</span></div>
+            <div class="question-meta"><span>Question <strong>${String(game.turn + 1).padStart(2, "0")}</strong> of ${TOTAL_TURNS}</span><span>${game.mode === "states" ? `${activeRegion.unit} finder` : `${activeRegion.citySingular} finder`}</span></div>
             <div class="turn-progress" aria-label="Question ${game.turn + 1} of ${TOTAL_TURNS}">${progress}</div>
             <p class="question-kicker">Where is...</p>
             <h2 class="question-name">${question.name}</h2>
-            <p class="question-prompt">${game.mode === "states" ? `Find ${activeRegion.unit} on the map.` : "Find the red city dot on the map."}</p>
+            <p class="question-prompt">${game.mode === "states" ? `Find ${activeRegion.unit} on the map.` : `Find the red ${activeRegion.citySingular} dot on the map.`}</p>
             ${feedback}
             ${game.answered ? `<div class="question-action"><button class="primary-button" data-action="next-turn">${isLastTurn ? "See my results" : "Next question"} ${icon("arrow-right")}</button></div>` : `<div class="waiting-hint">${icon("clock")} Take your time — there's no timer</div>`}
           </section>
@@ -508,13 +508,13 @@ function renderResults() {
           <div class="result-stats">
             <div class="result-stat"><span>Accuracy</span><strong>${score * 10}%</strong></div>
             <div class="result-stat"><span>Best streak</span><strong>${game.bestStreak}</strong></div>
-            <div class="result-stat"><span>Mode</span><strong>${game.mode === "states" ? activeRegion.plural : "Cities"}</strong></div>
+            <div class="result-stat"><span>Mode</span><strong>${game.mode === "states" ? activeRegion.plural : activeRegion.cityPlural}</strong></div>
             <div class="result-stat"><span>Places learned</span><strong>${score}</strong></div>
           </div>
         </div>
         <div class="result-actions">
           <button class="primary-button" data-action="play-again">${icon("refresh")} Play again</button>
-          <button class="secondary-button" data-action="switch-mode">${icon(game.mode === "states" ? "pin" : "map")} Try ${game.mode === "states" ? "cities" : activeRegion.plural}</button>
+          <button class="secondary-button" data-action="switch-mode">${icon(game.mode === "states" ? "pin" : "map")} Try ${game.mode === "states" ? activeRegion.cityPlural : activeRegion.plural}</button>
           <button class="text-button" data-action="home">Back to regions</button>
         </div>
         <div class="review-section">
@@ -532,8 +532,8 @@ function showHowTo() {
     <h2>How to play</h2>
     <p>There is no timer or sign-up.</p>
     <div class="dialog-steps">
-      <div class="dialog-step"><span class="dialog-step-number">1</span><div><strong>Choose a region and mode</strong><p>Choose ${activeRegion.name}, then select its ${playableStates.length} ${activeRegion.plural} or ${cities.length} cities.</p></div></div>
-      <div class="dialog-step"><span class="dialog-step-number">2</span><div><strong>Select a location</strong><p>Each round has ten randomized questions. Click the matching state boundary or red city dot.</p></div></div>
+      <div class="dialog-step"><span class="dialog-step-number">1</span><div><strong>Choose a region and mode</strong><p>Choose ${activeRegion.name}, then select its ${playableStates.length} ${activeRegion.plural} or ${cities.length} ${activeRegion.cityPlural}.</p></div></div>
+      <div class="dialog-step"><span class="dialog-step-number">2</span><div><strong>Select a location</strong><p>Each round has ten randomized questions. Click the matching ${activeRegion.unit} boundary or red ${activeRegion.citySingular} dot.</p></div></div>
       <div class="dialog-step"><span class="dialog-step-number">3</span><div><strong>Review your answer</strong><p>After every answer, all map labels appear and the correct location is highlighted. Your score is saved at the end of the round.</p></div></div>
     </div>`;
   dialog.showModal();
@@ -546,9 +546,7 @@ function showStats() {
     <h2>Your progress</h2>
     <p>Progress is saved in this browser.</p>
     <div class="stats-grid"><div class="stat-box"><strong>${stats.completed}</strong><span>Rounds</span></div><div class="stat-box"><strong>${stats.totalCorrect}</strong><span>Places found</span></div><div class="stat-box"><strong>${stats.bestStreak}</strong><span>Best streak</span></div></div>
-    <div class="best-score-row"><span>Best US state round</span><strong>${stats.best?.["us-states"] || 0} / 10</strong></div>
-    <div class="best-score-row"><span>Best China province round</span><strong>${stats.best?.["china-states"] || 0} / 10</strong></div>
-    <div class="best-score-row"><span>Best city round</span><strong>${Math.max(stats.best?.["us-cities"] || 0, stats.best?.["china-cities"] || 0)} / 10</strong></div>
+    ${Object.values(regionCatalog).map((region) => `<div class="best-score-row"><span>${region.name} · ${region.plural}</span><strong>${stats.best?.[`${region.id}-states`] || 0} / 10</strong></div><div class="best-score-row"><span>${region.name} · ${region.cityPlural}</span><strong>${stats.best?.[`${region.id}-cities`] || 0} / 10</strong></div>`).join("")}
     ${stats.completed ? `<button class="text-button" data-action="reset-stats">Reset local progress</button>` : ""}`;
   dialog.showModal();
 }

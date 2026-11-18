@@ -1,0 +1,68 @@
+Europe country boundaries and capital cities
+============================================
+
+Contents
+--------
+`europe-data.js` defines `window.EUROPE_ATLAS_DATA` with 50 sovereign European
+countries (geographic Europe, including transcontinental states commonly
+treated as European) and one capital city per country, projected to 975 x 610
+SVG units:
+
+  - states[]: { id, name, path, centroid: [x, y], isState: true }
+  - cities[]: { id, name, coordinates: [x, y], province }  (`province` matches
+    the corresponding state's `name`)
+
+Boundary source
+---------------
+Natural Earth, 1:10m Admin 0 Countries (version 5.x), public domain.
+Source file: ne_10m_admin_0_countries.geojson
+  https://github.com/nvkelso/natural-earth-vector (public domain)
+  Mirrors: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+License: Natural Earth data is in the public domain (no permission required;
+credit is appreciated but not required). See https://www.naturalearthdata.com/about/terms-of-use/
+
+Natural Earth does not contain warranty; boundaries are approximate and not
+authoritative.
+
+(geoBoundaries, CC BY 4.0 - https://www.geoboundaries.org/ - was also
+evaluated; Natural Earth was used for this file. If this file is ever
+regenerated from geoBoundaries, retain the CC BY 4.0 attribution and note the
+change here.)
+
+Notes on coverage and editing
+-----------------------------
+- 50 countries: the 44 UN/widely recognized sovereign states of geographic
+  Europe plus Russia, Turkey, and the three South Caucasus states
+  (Georgia, Armenia, Azerbaijan), plus Kosovo and Cyprus.
+  Cyprus is rendered as the whole island: the Republic of Cyprus
+  (ADM0_A3=CYP), Northern Cyprus (CYN) and the UN Buffer Zone (CNM) from
+  Natural Earth are merged into a single "Cyprus" entry.
+- Non-sovereign territories are excluded (e.g. Faroe Islands, Isle of Man,
+  Guernsey, Jersey, Aland, Gibraltar).
+- Clipped to a window of lon [-25, 68], lat [34, 72] (covers Iceland to the
+  Urals, Malta/Crete/Cyprus to northern North Cape). Consequently:
+    * Russia is shown to ~68 degE (European Russia); the Asian part is clipped.
+    * Spain's Canary Islands, Portugal's Azores/Madeira, France's overseas
+      departments, the Netherlands/Norway's remote territories (incl. Svalbard)
+      are outside the window and are not drawn.
+    * Denmark excludes Greenland and the Faroe Islands (separate NE features).
+- Ring winding was normalized for spherical (d3-geo) rendering and rings were
+  simplified with Douglas-Peucker (tolerance 0.01 deg). Feature bounds for
+  projection fitting were computed on the unsimplified geometry.
+- Projection: d3.geoConicEqualArea (conical equal-area), parallels 42 and 64,
+  centered on [12, 54], fitted to 975 x 610 with 10 px padding.
+- Capital coordinates are approximate city-center longitude/latitude in
+  WGS84, converted with the same projection. Capital dots may sit a fraction
+  of a pixel off coastlines (e.g. Copenhagen, Nicosia) due to generalized
+  coastlines; this is invisible at this scale.
+- Centroids are planar centroids of the projected country paths; where that
+  falls outside the country (e.g. Croatia, Greece), the capital's projected
+  coordinates are used instead.
+- Monaco, San Marino, Vatican City and Liechtenstein are far below the
+  polygon resolution of 1:10m at this scale; their boundaries are indicative
+  only.
+
+ID scheme: states `eu-<iso3 lower-case>`, cities `eu-city-<iso3 lower-case>`
+(e.g. `eu-fra`, `eu-city-fra`).
+
+This file is generated data; edit the generator inputs, not the file.

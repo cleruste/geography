@@ -1,0 +1,8 @@
+France metropolitan department quiz data
+
+Department boundaries (96 metropolitan departments): geoBoundaries, geoBoundaries-FRA-ADM2, version 5.0.0, https://github.com/wmgeolab/geoBoundaries/blob/main/releaseData/gbOpen/FRA/ADM2/geoBoundaries-FRA-ADM2.geojson
+License: Creative Commons Attribution 4.0 International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+
+Chef-lieux and commune center coordinates: French government API, https://geo.api.gouv.fr/departements and https://geo.api.gouv.fr/communes. French public data is available under the Open Licence 2.0: https://www.etalab.gouv.fr/licence-ouverte-open-licence/
+
+Boundary geometry is simplified and projected for the static map. This dataset covers metropolitan France; overseas departments are not included in the geoBoundaries FRA ADM2 source used here.
