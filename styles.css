@@ -342,9 +342,8 @@ svg { display: block; }
 .map-toolbar { min-height: 54px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid var(--line); }
 .map-instruction { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 11px; }
 .map-instruction .icon { width: 15px; height: 15px; color: var(--orange); }
-.map-counter { font-size: 10px; letter-spacing: 1.1px; color: #87918b; text-transform: uppercase; }
-.map-canvas { position: relative; background: #f0f2ea; min-height: 475px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.quiz-map { width: 100%; height: auto; position: relative; overflow: visible; }
+.map-canvas { position: relative; background: #f0f2ea; height: clamp(420px, 48vw, 570px); overflow: hidden; }
+.quiz-map { position: absolute; inset: 0; width: 100%; height: 100%; }
 .state-shape { fill: #dce4d7; stroke: #fbfcf8; stroke-width: 1.15; vector-effect: non-scaling-stroke; transition: fill .16s, opacity .16s; }
 .states-mode .state-shape.is-state { cursor: pointer; }
 .states-mode .state-shape.is-state:hover, .states-mode .state-shape.is-state:focus { fill: #f1b398; outline: none; }
@@ -353,8 +352,10 @@ svg { display: block; }
 .state-shape.incorrect { fill: #cb6258; }
 .state-shape.dimmed { opacity: .66; }
 .city-marker { pointer-events: none; }
-.cities-mode .city-marker { pointer-events: all; cursor: pointer; }
-.city-hit { fill: transparent; stroke: none; pointer-events: all; }
+.city-marker[data-action="city-answer"] { cursor: pointer; }
+.city-hit { fill: transparent; stroke: none; }
+/* Enable the invisible hit circle only while the city is an answer target. */
+.city-marker[data-action="city-answer"] .city-hit { pointer-events: all; }
 .city-dot { fill: #dd644b; stroke: #fff9f2; stroke-width: 1.4; vector-effect: non-scaling-stroke; transition: r .16s, fill .16s; }
 .cities-mode .city-marker:hover .city-dot, .cities-mode .city-marker:focus .city-dot { fill: #a83c28; r: 5.5; }
 .city-marker:focus { outline: none; }

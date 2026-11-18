@@ -1,0 +1,70 @@
+Africa country boundaries and capital cities
+===========================================
+
+Contents
+--------
+`africa-data.js` defines `window.AFRICA_ATLAS_DATA` with 54 UN member states of
+Africa (all playable, `isState: true`), 3 disputed / non-UN-member territories
+rendered as non-playable background context (`isState: false`), and 54 capital
+cities (one per UN member state), projected to 975 x 610 SVG units:
+
+  - states[]: { id, name, path, centroid: [x, y], isState: true | false }
+  - cities[]: { id, name, coordinates: [x, y], province } (`province` matches
+    the corresponding playable state's `name`)
+
+Boundary and place sources
+--------------------------
+Natural Earth, 1:10m Admin 0 Countries & Populated Places, version 5.1.2
+(public domain):
+  - `ne_10m_admin_0_countries.geojson`
+  - `ne_10m_populated_places.geojson`
+  https://github.com/nvkelso/natural-earth-vector (tag `v5.1.2`)
+  License: Natural Earth data is in the public domain (no permission required;
+  credit is appreciated but not required).
+  https://www.naturalearthdata.com/about/terms-of-use/
+
+Equatorial Guinea capital:
+  Ciudad de la Paz (1.58889 degN, 10.82250 degE), declared the official capital
+  of Equatorial Guinea by presidential decree on 2 January 2026 (replacing Malabo).
+
+Projection and geometry notes
+-----------------------------
+- Projection: `d3.geoConicEqualArea` centered on [17 degE, 2 degN] with
+  standard parallels -18 and 22, fitted to 975 x 610 with 12 px padding.
+- Ring winding normalized for spherical rendering; rings simplified with
+  Douglas-Peucker (`@turf/turf` `simplify`, tolerance 0.03 deg for mainland/large
+  islands, 0.005 deg for small island countries).
+- South Africa excludes its remote sub-Antarctic Prince Edward / Marion Islands
+  (~46.9 degS) so the continental and African island-nation map fills the
+  975 x 610 viewport.
+- Small island countries (Cabo Verde, Comoros, Mauritius, São Tomé and Príncipe,
+  Seychelles) are gently scaled around their SVG bounding-box centers to a
+  minimum span of 12-18 SVG units so they remain visible and clickable at full
+  map scale without altering their geographic locations.
+
+Conventions: multi-capital countries and disputed areas
+-------------------------------------------------------
+- Exactly one representative capital per UN member state is included:
+    * South Africa: Pretoria (administrative capital; legislative Cape Town and
+      judicial Bloemfontein omitted to keep 1:1 country-to-capital parity).
+    * Eswatini: Mbabane (administrative capital; royal/legislative Lobamba omitted).
+    * Benin: Porto-Novo (official capital; de facto seat Cotonou omitted).
+    * Côte d'Ivoire: Yamoussoukro (official political capital; Abidjan omitted).
+    * Tanzania: Dodoma (official capital; Dar es Salaam omitted).
+    * Burundi: Gitega (official political capital; Bujumbura omitted).
+    * Equatorial Guinea: Ciudad de la Paz (official capital since Jan 2026;
+      former capital Malabo omitted).
+- Brazzaville (Republic of the Congo) and Kinshasa (Democratic Republic of the
+  Congo) sit across the Congo River less than 1 SVG unit apart; their actual
+  projected coordinates are preserved.
+- Disputed / non-UN-member areas (`isState: false`, excluded from quiz turns):
+    * Western Sahara (`af-eh`)
+    * Somaliland (`af-somaliland`)
+    * Bir Tawil (`af-bir-tawil`)
+
+ID scheme:
+  - States: `af-<iso3 lower-case>` (e.g. `af-nga`, `af-ssd`; disputed: `af-eh`,
+    `af-somaliland`, `af-bir-tawil`).
+  - Cities: `af-city-<iso3 lower-case>` (e.g. `af-city-nga`).
+
+This file is generated data; edit the generator inputs, not the file.

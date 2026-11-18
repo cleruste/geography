@@ -1,6 +1,6 @@
 # Atlas
 
-A static geography quiz covering the United States, China, Europe, and France.
+A static geography quiz covering the United States, China, Europe, France, Brazil, and Africa.
 
 ## Run locally
 
@@ -19,6 +19,6 @@ Deploy the generated `dist` directory to any static host. No API keys, backend, 
 
 ## Gameplay
 
-Choose a region and take a 10-question boundary or city quiz. After each answer, map labels appear and the correct location is highlighted. Progress is stored locally.
+Choose a map and quiz mode. Most rounds have 10 questions; Brazil’s regions mode asks all five regions once. After each answer, map labels appear and the correct location is highlighted. Progress is stored locally.
 
-The quiz includes 50 US states, 34 Chinese province-level regions, 50 European countries, and 96 metropolitan French departments. France data excludes overseas departments. See the `public/data/*-SOURCE.txt` files for data sources and attribution.
+Brazil includes the five official regions, all 26 states and the Federal District, and their capitals. Africa includes country and capital modes for its 54 UN member countries. France covers metropolitan departments only. See `public/data/*-SOURCE.txt` for coverage, conventions, and attribution.

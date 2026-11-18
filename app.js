@@ -2,7 +2,9 @@ const regionCatalog = {
   us: { id: "us", name: "United States", continent: "North America", unit: "state", plural: "states", citySingular: "city", cityPlural: "cities", data: window.ATLAS_DATA },
   china: { id: "china", name: "China", continent: "Asia", unit: "province", plural: "provinces", citySingular: "city", cityPlural: "cities", data: window.CHINA_ATLAS_DATA },
   europe: { id: "europe", name: "Europe", continent: "Europe", unit: "country", plural: "countries", citySingular: "capital", cityPlural: "capitals", data: window.EUROPE_ATLAS_DATA },
-  france: { id: "france", name: "France", continent: "Europe", unit: "department", plural: "departments", citySingular: "chef-lieu", cityPlural: "chef-lieux", data: window.FRANCE_ATLAS_DATA }
+  france: { id: "france", name: "France", continent: "Europe", unit: "department", plural: "departments", citySingular: "chef-lieu", cityPlural: "chef-lieux", data: window.FRANCE_ATLAS_DATA },
+  brazil: { id: "brazil", name: "Brazil", continent: "South America", unit: "federal unit", plural: "federal units", citySingular: "capital", cityPlural: "capitals", data: window.BRAZIL_ATLAS_DATA },
+  africa: { id: "africa", name: "Africa", continent: "Africa", unit: "country", plural: "countries", citySingular: "capital", cityPlural: "capitals", data: window.AFRICA_ATLAS_DATA }
 };
 let activeRegion = regionCatalog.us;
 let states = activeRegion.data.states;
@@ -20,7 +22,9 @@ let currentView = "regions";
 let toastTimer;
 const MAP_WIDTH = 975;
 const MAP_HEIGHT = 610;
-let mapView = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
+const FALLBACK_MAP_VIEW = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
+let fullMapView = FALLBACK_MAP_VIEW;
+let mapView = fullMapView;
 let suppressMapClick = false;
 
 const icon = (name, className = "") => `<svg class="icon ${className}" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
@@ -86,8 +90,20 @@ function setRegion(id) {
   states = activeRegion.data.states;
   cities = activeRegion.data.cities;
   playableStates = states.filter((state) => state.isState);
-  selectedMode = "states";
-  mapView = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
+  selectedMode = quizModes()[0].id;
+  fullMapView = FALLBACK_MAP_VIEW;
+  mapView = fullMapView;
+}
+
+function quizModes(region = activeRegion) {
+  const modes = [
+    { id: "states", singular: region.unit, plural: region.plural, pool: region.data.states.filter((state) => state.isState) },
+    { id: "cities", singular: region.citySingular, plural: region.cityPlural, pool: region.data.cities }
+  ];
+  if (region.data.macroregions?.length) {
+    modes.unshift({ id: "macroregions", singular: "region", plural: "regions", pool: region.data.macroregions });
+  }
+  return modes;
 }
 
 function regionCard(id, number, data) {
@@ -98,8 +114,7 @@ function regionCard(id, number, data) {
   return `<article class="region-card us-card ${id === "china" ? "china-card" : ""}">
     <div class="region-card-content"><span class="region-number">${number} / ${config.continent.toUpperCase()}</span>
       <span class="pill pill-ready">${icon("spark")} Available</span><h3>${config.name}</h3>
-      <p>Find ${label} and ${cityPlural} on the map.</p>
-      <div class="region-tags"><span class="region-tag">${count} ${label}</span><span class="region-tag">${data.cities.length} ${cityPlural}</span></div>
+      <div class="region-tags">${data.macroregions?.length ? `<span class="region-tag">${data.macroregions.length} regions</span>` : ""}<span class="region-tag">${count} ${label}</span><span class="region-tag">${data.cities.length} ${cityPlural}</span></div>
       <button class="primary-button" data-action="select-region" data-region="${id}">Choose mode ${icon("arrow-right")}</button>
     </div><div class="us-map-preview">${previewMap(data)}<span class="preview-caption">${config.name}</span></div>
   </article>`;
@@ -144,13 +159,14 @@ function renderRegions() {
 function renderSetup() {
   currentView = "setup";
   game = null;
+  const rounds = Math.min(quizModes().find((mode) => mode.id === selectedMode).pool.length, TOTAL_TURNS);
   app.innerHTML = `
     <div class="page-shell view setup-view">
       <button class="back-link" data-action="home">${icon("arrow-left")} All regions</button>
       <section class="setup-heading">
         <div class="eyebrow">Choose a mode</div>
         <h1><em>${activeRegion.name}</em></h1>
-        <p>Choose ${activeRegion.plural} or ${activeRegion.cityPlural}.</p>
+        <p>${quizModes().map((mode) => mode.plural).join(" · ")}</p>
       </section>
       <div class="setup-grid">
         <div class="setup-map-card">
@@ -158,25 +174,20 @@ function renderSetup() {
           ${previewMap()}
           <div class="setup-map-footer">
             <div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>${activeRegion.citySingular}</span></div>
-            <span>${playableStates.length} ${activeRegion.plural} · ${cities.length} cities</span>
+            <span>${playableStates.length} ${activeRegion.plural} · ${cities.length} ${activeRegion.cityPlural}</span>
           </div>
         </div>
         <section class="mode-panel" aria-labelledby="mode-title">
           <h2 id="mode-title">Choose your challenge</h2>
           <p>You can switch modes for your next round.</p>
           <div class="mode-options">
-            <button class="mode-option ${selectedMode === "states" ? "selected" : ""}" data-action="select-mode" data-mode="states" aria-pressed="${selectedMode === "states"}">
-              <span class="mode-option-icon">${icon("map")}</span>
-              <span><strong>Find a ${activeRegion.unit}</strong><small>Locate all ${playableStates.length} ${activeRegion.plural}.</small></span>
+            ${quizModes().map((mode) => `<button class="mode-option ${selectedMode === mode.id ? "selected" : ""}" data-action="select-mode" data-mode="${mode.id}" aria-pressed="${selectedMode === mode.id}">
+              <span class="mode-option-icon">${icon(mode.id === "cities" ? "pin" : "map")}</span>
+              <span><strong>${mode.plural}</strong><small>${mode.pool.length} locations</small></span>
               <span class="mode-radio"></span>
-            </button>
-            <button class="mode-option ${selectedMode === "cities" ? "selected" : ""}" data-action="select-mode" data-mode="cities" aria-pressed="${selectedMode === "cities"}">
-              <span class="mode-option-icon">${icon("pin")}</span>
-              <span><strong>Find the ${activeRegion.citySingular}</strong><small>Locate ${cities.length} ${activeRegion.cityPlural}.</small></span>
-              <span class="mode-radio"></span>
-            </button>
+            </button>`).join("")}
           </div>
-          <div class="quiz-details"><span class="quiz-detail">${icon("target")} 10 questions</span><span class="quiz-detail">${icon("clock")} No time limit</span></div>
+          <div class="quiz-details"><span class="quiz-detail">${icon("target")} ${rounds} questions</span><span class="quiz-detail">${icon("clock")} No time limit</span></div>
           <button class="primary-button start-button" data-action="start-quiz">Start the quiz ${icon("arrow-right")}</button>
           <p class="setup-footnote">A fresh set of questions every time you play.</p>
         </section>
@@ -213,21 +224,43 @@ const cityLabelLayout = {
   "Honolulu": { dx: 8, dy: 13 }, "Anchorage": { dx: 8, dy: 13 }
 };
 
-function setMapView(view = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT }) {
+function fitMapView() {
+  const territory = document.querySelector(".quiz-map .map-territory");
+  if (!territory) return FALLBACK_MAP_VIEW;
+  const bounds = territory.getBBox();
+  if (bounds.width <= 0 || bounds.height <= 0) return FALLBACK_MAP_VIEW;
+  let left = bounds.x;
+  let top = bounds.y;
+  let right = bounds.x + bounds.width;
+  let bottom = bounds.y + bounds.height;
+  for (const { coordinates: [x, y] } of cities) {
+    left = Math.min(left, x);
+    right = Math.max(right, x);
+    top = Math.min(top, y);
+    bottom = Math.max(bottom, y);
+  }
+  const margin = Math.max(right - left, bottom - top) * 0.035;
+  return { x: left - margin, y: top - margin, width: right - left + margin * 2, height: bottom - top + margin * 2 };
+}
+
+function clampMapWidth(width) {
+  return Math.min(fullMapView.width, Math.max(fullMapView.width / 9, width));
+}
+
+function setMapView(view = fullMapView) {
   mapView = { ...view };
   const map = document.querySelector(".quiz-map");
   if (map) map.setAttribute("viewBox", `${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}`);
 }
 
 function zoomMap(factor, anchor) {
-  const minWidth = 110;
-  const maxWidth = MAP_WIDTH;
-  const width = Math.min(maxWidth, Math.max(minWidth, mapView.width * factor));
+  const width = clampMapWidth(mapView.width * factor);
+  if (width === fullMapView.width && factor > 1) return setMapView();
   const ratio = width / mapView.width;
   const center = anchor || { x: mapView.x + mapView.width / 2, y: mapView.y + mapView.height / 2 };
   const view = {
     width,
-    height: width * MAP_HEIGHT / MAP_WIDTH,
+    height: mapView.height * ratio,
     x: center.x - (center.x - mapView.x) * ratio,
     y: center.y - (center.y - mapView.y) * ratio
   };
@@ -272,8 +305,8 @@ function enableMapPan() {
     if (pointers.size >= 2 && pinch) {
       const [a, b] = pointers.values();
       const center = midpoint(a, b);
-      const width = Math.min(MAP_WIDTH, Math.max(110, pinch.view.width * pinch.distance / Math.max(1, distance(a, b))));
-      const height = width * MAP_HEIGHT / MAP_WIDTH;
+      const width = clampMapWidth(pinch.view.width * pinch.distance / Math.max(1, distance(a, b)));
+      const height = pinch.view.height * width / pinch.view.width;
       const bounds = canvas.getBoundingClientRect();
       const scale = Math.min(bounds.width / width, bounds.height / height);
       const pointX = (center.x - bounds.left - (bounds.width - width * scale) / 2) / scale;
@@ -285,12 +318,13 @@ function enableMapPan() {
     if (!drag) return;
     const bounds = canvas.getBoundingClientRect();
     const scale = Math.min(bounds.width / drag.view.width, bounds.height / drag.view.height);
-    const dx = (event.clientX - drag.x) / scale;
-    const dy = (event.clientY - drag.y) / scale;
-    if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    // Measure tap tolerance on the screen so zoom level doesn't change it.
+    if (Math.hypot(dx, dy) > 6) drag.moved = true;
     if (drag.moved) {
       canvas.classList.add("is-panning");
-      setMapView({ ...drag.view, x: drag.view.x - dx, y: drag.view.y - dy });
+      setMapView({ ...drag.view, x: drag.view.x - dx / scale, y: drag.view.y - dy / scale });
     }
   });
 
@@ -311,12 +345,12 @@ function enableMapPan() {
 
 function mapLabels(question) {
   if (!game.answered) return "";
-  const stateLabels = states.filter((state) => state.isState).map((state) => {
+  const stateLabels = (game.mode === "macroregions" ? game.pool : playableStates).map((state) => {
     const layout = stateLabelLayout[state.name];
     const [cx, cy] = state.centroid;
     const x = layout?.x ?? cx;
     const y = layout?.y ?? cy;
-    const targetClass = state.id === question.id && game.mode === "states" ? "target-label" : "";
+    const targetClass = state.id === question.id && game.mode !== "cities" ? "target-label" : "";
     return `${layout ? `<path class="label-leader" d="M${cx} ${cy} L${x} ${y - 3}"/>` : ""}<text class="state-label ${targetClass}" x="${x}" y="${y}">${state.name}</text>`;
   }).join("");
   const occupied = [];
@@ -359,12 +393,13 @@ function mapLabels(question) {
 }
 
 function quizMap(question) {
-  const statePaths = states.map((state) => {
-    const isCorrect = game.answered && game.mode === "states" && state.id === question.id;
-    const isIncorrect = game.answered && game.mode === "states" && state.id === game.selected && !game.answers.at(-1).correct;
-    const isDimmed = game.answered && game.mode === "states" && !isCorrect && !isIncorrect;
+  const boundaryMode = game.mode !== "cities";
+  const statePaths = (game.mode === "macroregions" ? game.pool : states).map((state) => {
+    const isCorrect = game.answered && boundaryMode && state.id === question.id;
+    const isIncorrect = game.answered && boundaryMode && state.id === game.selected && !game.answers.at(-1).correct;
+    const isDimmed = game.answered && boundaryMode && !isCorrect && !isIncorrect;
     const classes = ["state-shape", state.isState ? "is-state" : "is-dc", isCorrect ? "correct" : "", isIncorrect ? "incorrect" : "", isDimmed ? "dimmed" : ""].join(" ");
-    const interactive = game.mode === "states" && state.isState && !game.answered;
+    const interactive = boundaryMode && state.isState && !game.answered;
     return `<path d="${state.path}" class="${classes}" ${interactive ? `data-action="state-answer" data-id="${state.id}" role="button" tabindex="0" aria-label="Select ${state.name}"` : ""}/>`;
   }).join("");
   const cityMarkers = cities.map((city) => {
@@ -376,17 +411,21 @@ function quizMap(question) {
       <circle class="city-halo" cx="${x}" cy="${y}" r="11"/><circle class="city-hit" cx="${x}" cy="${y}" r="18"/><circle class="city-dot" cx="${x}" cy="${y}" r="3.4"/>
     </g>`;
   }).join("");
-  return `<svg class="quiz-map ${game.mode}-mode ${game.answered ? "map-answered" : ""}" viewBox="${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}" role="group" aria-label="Interactive map of ${activeRegion.name}">
-    <g>${statePaths}</g><g>${cityMarkers}</g>${mapLabels(question)}
+  return `<svg class="quiz-map ${boundaryMode ? "states" : "cities"}-mode ${game.answered ? "map-answered" : ""}" viewBox="${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}" role="group" aria-label="Interactive map of ${activeRegion.name}">
+    <g class="map-territory">${statePaths}</g><g>${cityMarkers}</g>${mapLabels(question)}
   </svg>`;
 }
 
 function startGame(mode = selectedMode) {
+  const config = quizModes().find((option) => option.id === mode);
+  if (!config) return;
   selectedMode = mode;
-  const pool = mode === "states" ? playableStates : cities;
+  const { pool } = config;
   game = {
     region: activeRegion.id,
     mode,
+    config,
+    pool,
     questions: shuffle(pool).slice(0, TOTAL_TURNS),
     turn: 0,
     score: 0,
@@ -401,9 +440,8 @@ function startGame(mode = selectedMode) {
 
 function answerLocation(id) {
   if (!game || game.answered) return;
-  const pool = game.mode === "states" ? playableStates : cities;
   const question = game.questions[game.turn];
-  const selection = pool.find((item) => item.id === id);
+  const selection = game.pool.find((item) => item.id === id);
   if (!selection) return;
   const correct = selection.id === question.id;
   game.answered = true;
@@ -423,10 +461,11 @@ function answerLocation(id) {
 function renderQuiz() {
   currentView = "quiz";
   const question = game.questions[game.turn];
-  const locationPlural = game.mode === "states" ? activeRegion.plural : activeRegion.cityPlural;
+  const locationPlural = game.config.plural;
   const latestAnswer = game.answers.at(-1);
-  const isLastTurn = game.turn === TOTAL_TURNS - 1;
-  const progress = Array.from({ length: TOTAL_TURNS }, (_, index) => {
+  const totalTurns = game.questions.length;
+  const isLastTurn = game.turn === totalTurns - 1;
+  const progress = Array.from({ length: totalTurns }, (_, index) => {
     const answer = game.answers[index];
     const className = answer ? (answer.correct ? "correct" : "incorrect") : (index === game.turn && !game.answered ? "current" : "");
     return `<span class="turn-segment ${className}"></span>`;
@@ -439,29 +478,29 @@ function renderQuiz() {
   app.innerHTML = `
     <div class="page-shell view quiz-view">
       <div class="quiz-topbar">
-        <div class="quiz-title-group"><h1>${activeRegion.name}</h1><span class="mode-badge">${icon(game.mode === "states" ? "map" : "pin")} ${locationPlural} mode</span></div>
+        <div class="quiz-title-group"><h1>${activeRegion.name}</h1><span class="mode-badge">${icon(game.mode === "cities" ? "pin" : "map")} ${locationPlural} mode</span></div>
         <button class="back-link" data-action="home">${icon("arrow-left")} Leave quiz</button>
       </div>
       <div class="game-grid">
         <section class="map-card" aria-label="Quiz map">
-          <div class="map-toolbar"><span class="map-instruction">${icon("target")} ${game.answered ? "Explore the revealed map" : `Click ${game.mode === "states" ? `a ${activeRegion.unit}` : `a red ${activeRegion.citySingular} dot`} to answer`}</span><span class="map-counter">${activeRegion.name} / ${locationPlural}</span></div>
-          <div class="map-canvas">
-            ${quizMap(question)}
+          <div class="map-toolbar">
+            <span class="map-instruction">${icon("target")} ${game.answered ? "Answer revealed" : `Select ${game.mode === "cities" ? `a ${game.config.singular} dot` : `a ${game.config.singular}`}`}</span>
             <div class="map-zoom-controls" role="group" aria-label="Map zoom">
               <button class="map-zoom-button" data-action="zoom-in" aria-label="Zoom in">+</button>
               <button class="map-zoom-button" data-action="zoom-out" aria-label="Zoom out">−</button>
               <button class="map-zoom-button zoom-reset" data-action="zoom-reset">Full map</button>
             </div>
           </div>
-          <div class="map-bottom"><div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>${activeRegion.citySingular}</span></div><span class="map-bottom-note">${game.answered ? "Labels revealed · Correct answer highlighted" : "Labels appear after your answer"}</span></div>
+          <div class="map-canvas">${quizMap(question)}</div>
+          <div class="map-bottom"><div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${game.mode === "macroregions" ? game.config.singular : activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>${activeRegion.citySingular}</span></div><span class="map-bottom-note">${game.answered ? "Labels revealed · Correct answer highlighted" : "Labels appear after your answer"}</span></div>
         </section>
         <aside class="question-column">
           <section class="question-card">
-            <div class="question-meta"><span>Question <strong>${String(game.turn + 1).padStart(2, "0")}</strong> of ${TOTAL_TURNS}</span><span>${game.mode === "states" ? `${activeRegion.unit} finder` : `${activeRegion.citySingular} finder`}</span></div>
-            <div class="turn-progress" aria-label="Question ${game.turn + 1} of ${TOTAL_TURNS}">${progress}</div>
+            <div class="question-meta"><span>Question <strong>${String(game.turn + 1).padStart(2, "0")}</strong> of ${totalTurns}</span><span>${game.config.singular} finder</span></div>
+            <div class="turn-progress" style="grid-template-columns: repeat(${totalTurns}, 1fr)" aria-label="Question ${game.turn + 1} of ${totalTurns}">${progress}</div>
             <p class="question-kicker">Where is...</p>
             <h2 class="question-name">${question.name}</h2>
-            <p class="question-prompt">${game.mode === "states" ? `Find ${activeRegion.unit} on the map.` : `Find the red ${activeRegion.citySingular} dot on the map.`}</p>
+            <p class="question-prompt">${game.mode === "cities" ? `Find the red ${game.config.singular} dot on the map.` : `Find the ${game.config.singular} on the map.`}</p>
             ${feedback}
             ${game.answered ? `<div class="question-action"><button class="primary-button" data-action="next-turn">${isLastTurn ? "See my results" : "Next question"} ${icon("arrow-right")}</button></div>` : `<div class="waiting-hint">${icon("clock")} Take your time — there's no timer</div>`}
           </section>
@@ -473,14 +512,14 @@ function renderQuiz() {
         </aside>
       </div>
     </div>`;
-  if (game.answered) setMapView(mapView);
-  else setMapView();
+  fullMapView = fitMapView();
+  setMapView(game.answered ? mapView : fullMapView);
   enableMapPan();
 }
 
 function nextTurn() {
   if (!game?.answered) return;
-  if (game.turn === TOTAL_TURNS - 1) {
+  if (game.turn === game.questions.length - 1) {
     recordGame();
     renderResults();
     return;
@@ -494,6 +533,7 @@ function nextTurn() {
 function renderResults() {
   currentView = "results";
   const score = game.score;
+  const totalTurns = game.questions.length;
   const title = "Quiz <em>results</em>";
   const subtitle = "Review your answers below.";
   app.innerHTML = `
@@ -504,21 +544,21 @@ function renderResults() {
         <h1>${title}</h1>
         <p class="results-subtitle">${subtitle}</p>
         <div class="results-summary">
-          <div class="score-ring" style="--score-angle: ${score / TOTAL_TURNS * 360}deg"><div class="score-ring-content"><strong>${score}</strong><span> / ${TOTAL_TURNS}</span></div></div>
+          <div class="score-ring" style="--score-angle: ${score / totalTurns * 360}deg"><div class="score-ring-content"><strong>${score}</strong><span> / ${totalTurns}</span></div></div>
           <div class="result-stats">
-            <div class="result-stat"><span>Accuracy</span><strong>${score * 10}%</strong></div>
+            <div class="result-stat"><span>Accuracy</span><strong>${Math.round(score / totalTurns * 100)}%</strong></div>
             <div class="result-stat"><span>Best streak</span><strong>${game.bestStreak}</strong></div>
-            <div class="result-stat"><span>Mode</span><strong>${game.mode === "states" ? activeRegion.plural : activeRegion.cityPlural}</strong></div>
+            <div class="result-stat"><span>Mode</span><strong>${game.config.plural}</strong></div>
             <div class="result-stat"><span>Places learned</span><strong>${score}</strong></div>
           </div>
         </div>
         <div class="result-actions">
           <button class="primary-button" data-action="play-again">${icon("refresh")} Play again</button>
-          <button class="secondary-button" data-action="switch-mode">${icon(game.mode === "states" ? "pin" : "map")} Try ${game.mode === "states" ? activeRegion.cityPlural : activeRegion.plural}</button>
+          ${quizModes().filter((mode) => mode.id !== game.mode).map((mode) => `<button class="secondary-button" data-action="switch-mode" data-mode="${mode.id}">${icon(mode.id === "cities" ? "pin" : "map")} Try ${mode.plural}</button>`).join("")}
           <button class="text-button" data-action="home">Back to regions</button>
         </div>
         <div class="review-section">
-          <div class="review-heading"><h2>Answers</h2><span>${score} correct · ${TOTAL_TURNS - score} incorrect</span></div>
+          <div class="review-heading"><h2>Answers</h2><span>${score} correct · ${totalTurns - score} incorrect</span></div>
           <div class="review-list">${game.answers.map((answer) => `<div class="review-item ${answer.correct ? "correct" : "incorrect"}" title="${answer.correct ? answer.question : `You chose ${answer.selected}`}"><span class="review-status">${icon(answer.correct ? "check" : "close")}</span><span>${answer.question}</span></div>`).join("")}</div>
         </div>
       </section>
@@ -532,8 +572,8 @@ function showHowTo() {
     <h2>How to play</h2>
     <p>There is no timer or sign-up.</p>
     <div class="dialog-steps">
-      <div class="dialog-step"><span class="dialog-step-number">1</span><div><strong>Choose a region and mode</strong><p>Choose ${activeRegion.name}, then select its ${playableStates.length} ${activeRegion.plural} or ${cities.length} ${activeRegion.cityPlural}.</p></div></div>
-      <div class="dialog-step"><span class="dialog-step-number">2</span><div><strong>Select a location</strong><p>Each round has ten randomized questions. Click the matching ${activeRegion.unit} boundary or red ${activeRegion.citySingular} dot.</p></div></div>
+      <div class="dialog-step"><span class="dialog-step-number">1</span><div><strong>Choose a region and mode</strong><p>Choose a map and one of its quiz modes.</p></div></div>
+      <div class="dialog-step"><span class="dialog-step-number">2</span><div><strong>Select a location</strong><p>Each round has up to ten questions. Select the matching area or red dot.</p></div></div>
       <div class="dialog-step"><span class="dialog-step-number">3</span><div><strong>Review your answer</strong><p>After every answer, all map labels appear and the correct location is highlighted. Your score is saved at the end of the round.</p></div></div>
     </div>`;
   dialog.showModal();
@@ -546,7 +586,7 @@ function showStats() {
     <h2>Your progress</h2>
     <p>Progress is saved in this browser.</p>
     <div class="stats-grid"><div class="stat-box"><strong>${stats.completed}</strong><span>Rounds</span></div><div class="stat-box"><strong>${stats.totalCorrect}</strong><span>Places found</span></div><div class="stat-box"><strong>${stats.bestStreak}</strong><span>Best streak</span></div></div>
-    ${Object.values(regionCatalog).map((region) => `<div class="best-score-row"><span>${region.name} · ${region.plural}</span><strong>${stats.best?.[`${region.id}-states`] || 0} / 10</strong></div><div class="best-score-row"><span>${region.name} · ${region.cityPlural}</span><strong>${stats.best?.[`${region.id}-cities`] || 0} / 10</strong></div>`).join("")}
+    ${Object.values(regionCatalog).flatMap((region) => quizModes(region).map((mode) => `<div class="best-score-row"><span>${region.name} · ${mode.plural}</span><strong>${stats.best?.[`${region.id}-${mode.id}`] || 0} / ${Math.min(mode.pool.length, TOTAL_TURNS)}</strong></div>`)).join("")}
     ${stats.completed ? `<button class="text-button" data-action="reset-stats">Reset local progress</button>` : ""}`;
   dialog.showModal();
 }
@@ -559,11 +599,26 @@ const actions = {
   "select-region": (element) => { setRegion(element.dataset.region); renderSetup(); },
   "select-mode": (element) => { selectedMode = element.dataset.mode; renderSetup(); },
   "start-quiz": () => startGame(),
-  "state-answer": (element) => { if (game?.mode === "states") answerLocation(element.dataset.id); },
-  "city-answer": (element) => { if (game?.mode === "cities") answerLocation(element.dataset.id); },
+  "state-answer": (element) => { if (game && game.mode !== "cities") answerLocation(element.dataset.id); },
+  "city-answer": (element, event) => {
+    if (game?.mode !== "cities") return;
+    if (!event.detail) return answerLocation(element.dataset.id);
+    const map = element.ownerSVGElement;
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(map.getScreenCTM().inverse());
+    let nearest = element.dataset.id;
+    let bestDistance = Infinity;
+    for (const city of game.pool) {
+      const distance = Math.hypot(city.coordinates[0] - point.x, city.coordinates[1] - point.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        nearest = city.id;
+      }
+    }
+    answerLocation(nearest);
+  },
   "next-turn": nextTurn,
   "play-again": () => startGame(game.mode),
-  "switch-mode": () => startGame(game.mode === "states" ? "cities" : "states"),
+  "switch-mode": (element) => startGame(element.dataset.mode),
   "how-to": showHowTo,
   stats: showStats,
   "close-dialog": () => dialog.close(),
@@ -584,7 +639,7 @@ document.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-action]");
   if (!trigger) return;
   const action = actions[trigger.dataset.action];
-  if (action) action(trigger);
+  if (action) action(trigger, event);
 });
 
 document.addEventListener("keydown", (event) => {

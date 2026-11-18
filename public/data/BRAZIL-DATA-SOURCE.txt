@@ -1,0 +1,13 @@
+Brazil geography quiz data
+
+Federal unit boundaries (26 states and the Federal District): Instituto Brasileiro de Geografia e Estatística (IBGE), Brazil - Subnational Administrative Boundaries, via OCHA's Humanitarian Data Exchange (HDX): https://data.humdata.org/dataset/cod-ab-bra
+The source used is geoBoundaries gbHumanitarian BRA ADM1, boundary ID BRA-ADM1-60159587, representing 2020:
+https://github.com/wmgeolab/geoBoundaries/blob/9469f09/releaseData/gbHumanitarian/BRA/ADM1/geoBoundaries-BRA-ADM1.geojson
+License: Creative Commons Attribution 3.0 IGO (CC BY 3.0 IGO), https://creativecommons.org/licenses/by/3.0/igo/
+
+Official federal unit names and macroregion assignments: IBGE Localidades API, https://servicodados.ibge.gov.br/api/v1/localidades/estados
+
+State capital assignments and city-center coordinates: GeoNames, https://www.geonames.org/BR/administrative-division-brazil.html and https://download.geonames.org/export/dump/cities15000.zip
+License: Creative Commons Attribution 4.0 International (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/
+
+Boundaries were projected to a Brazil-centered Albers equal-area projection, cleaned, simplified and scaled to a 975 × 610 SVG. The five IBGE macroregions were derived by merging these federal unit boundaries. The shape centroids are interior label points, and capital coordinates use the same projection and scale as the boundaries.
