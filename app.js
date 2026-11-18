@@ -1,3 +1,6 @@
+import { createJavaScriptRound } from "./engine/javascript.js";
+import { loadWebAssemblyEngine } from "./engine/webassembly.js";
+
 const regionCatalog = {
   us: { id: "us", name: "United States", continent: "North America", unit: "state", plural: "states", citySingular: "city", cityPlural: "cities", data: window.ATLAS_DATA },
   china: { id: "china", name: "China", continent: "Asia", unit: "province", plural: "provinces", citySingular: "city", cityPlural: "cities", data: window.CHINA_ATLAS_DATA },
@@ -28,14 +31,46 @@ let mapView = fullMapView;
 let suppressMapClick = false;
 
 const icon = (name, className = "") => `<svg class="icon ${className}" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
-const shuffle = (items) => {
-  const copy = [...items];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[randomIndex]] = [copy[randomIndex], copy[index]];
+const ENGINE_KEY = "atlas-quiz-engine";
+const engineSupported = typeof WebAssembly !== "undefined";
+let selectedEngine = "js";
+let createRound = createJavaScriptRound;
+let engineRequest = 0;
+let engineLoading = false;
+let engineStatus = "";
+try {
+  if (engineSupported && localStorage.getItem(ENGINE_KEY) === "wasm") selectedEngine = "wasm";
+} catch { /* Engine selection works without storage. */ }
+
+function updateEngineControls() {
+  const status = document.querySelector("#engine-status");
+  if (status) status.textContent = engineStatus;
+  for (const button of document.querySelectorAll('[data-action="select-region"]')) button.disabled = engineLoading;
+}
+
+async function applyEngine(choice) {
+  const request = ++engineRequest;
+  engineLoading = choice === "wasm";
+  engineStatus = engineLoading ? "Loading WebAssembly…" : "";
+  updateEngineControls();
+  try {
+    const factory = choice === "wasm" ? await loadWebAssemblyEngine() : createJavaScriptRound;
+    if (request !== engineRequest) return;
+    createRound = factory;
+    selectedEngine = choice;
+    engineStatus = "";
+  } catch {
+    if (request !== engineRequest) return;
+    createRound = createJavaScriptRound;
+    selectedEngine = "js";
+    engineStatus = "WebAssembly could not load. Using JavaScript.";
   }
-  return copy;
-};
+  engineLoading = false;
+  const select = document.querySelector("#quiz-engine");
+  if (select) select.value = selectedEngine;
+  updateEngineControls();
+  try { localStorage.setItem(ENGINE_KEY, selectedEngine); } catch { /* Optional preference. */ }
+}
 
 function getStats() {
   try {
@@ -137,6 +172,14 @@ function renderRegions() {
         </div>
       </section>
 
+      <div class="engine-settings">
+        <label for="quiz-engine">Quiz engine</label>
+        <select id="quiz-engine" aria-describedby="engine-status">
+          <option value="js" ${selectedEngine === "js" ? "selected" : ""}>JavaScript (original)</option>
+          <option value="wasm" ${selectedEngine === "wasm" || engineLoading ? "selected" : ""} ${engineSupported ? "" : "disabled"}>WebAssembly (experimental)</option>
+        </select>
+        <span id="engine-status" role="status"></span>
+      </div>
       <section aria-labelledby="region-heading">
         <div class="section-heading"><h2 id="region-heading">Choose a region</h2><span>${Object.keys(regionCatalog).length} regions available</span></div>
         <div class="region-grid region-pair">
@@ -154,6 +197,7 @@ function renderRegions() {
       </section>
     </div>`;
   updateHeaderStats();
+  updateEngineControls();
 }
 
 function renderSetup() {
@@ -421,18 +465,17 @@ function startGame(mode = selectedMode) {
   if (!config) return;
   selectedMode = mode;
   const { pool } = config;
+  const round = createRound(pool.length, TOTAL_TURNS, (length) => Math.floor(Math.random() * length));
   game = {
     region: activeRegion.id,
+    engine: selectedEngine,
     mode,
     config,
     pool,
-    questions: shuffle(pool).slice(0, TOTAL_TURNS),
-    turn: 0,
-    score: 0,
-    streak: 0,
-    bestStreak: 0,
+    round,
+    questions: round.questions.map((index) => pool[index]),
+    ...round.snapshot(),
     answers: [],
-    answered: false,
     selected: null
   };
   renderQuiz();
@@ -441,19 +484,11 @@ function startGame(mode = selectedMode) {
 function answerLocation(id) {
   if (!game || game.answered) return;
   const question = game.questions[game.turn];
-  const selection = game.pool.find((item) => item.id === id);
-  if (!selection) return;
-  const correct = selection.id === question.id;
-  game.answered = true;
-  game.selected = id;
-  if (correct) {
-    game.score += 1;
-    game.streak += 1;
-    game.bestStreak = Math.max(game.bestStreak, game.streak);
-  } else {
-    game.streak = 0;
-  }
-  game.answers.push({ question: question.name, selected: selection.name, correct });
+  const selection = game.pool.findIndex((item) => item.id === id);
+  const result = game.round.answer(selection);
+  if (result < 0) return;
+  Object.assign(game, game.round.snapshot(), { selected: id });
+  game.answers.push({ question: question.name, selected: game.pool[selection].name, correct: result === 1 });
   renderQuiz();
   document.querySelector(".question-action button")?.focus({ preventScroll: true });
 }
@@ -476,7 +511,7 @@ function renderQuiz() {
       <div><strong>${latestAnswer.correct ? "Correct" : "Incorrect"}</strong><p>${latestAnswer.correct ? `You found ${question.name}.` : `You chose ${latestAnswer.selected}. ${question.name} is highlighted on the map.`}</p></div>
     </div>` : "";
   app.innerHTML = `
-    <div class="page-shell view quiz-view">
+    <div class="page-shell view quiz-view" data-engine="${game.engine}">
       <div class="quiz-topbar">
         <div class="quiz-title-group"><h1>${activeRegion.name}</h1><span class="mode-badge">${icon(game.mode === "cities" ? "pin" : "map")} ${locationPlural} mode</span></div>
         <button class="back-link" data-action="home">${icon("arrow-left")} Leave quiz</button>
@@ -518,15 +553,14 @@ function renderQuiz() {
 }
 
 function nextTurn() {
-  if (!game?.answered) return;
-  if (game.turn === game.questions.length - 1) {
+  const result = game?.round.next();
+  if (!result) return;
+  if (result === 2) {
     recordGame();
     renderResults();
     return;
   }
-  game.turn += 1;
-  game.answered = false;
-  game.selected = null;
+  Object.assign(game, game.round.snapshot(), { selected: null });
   renderQuiz();
 }
 
@@ -642,6 +676,10 @@ document.addEventListener("click", (event) => {
   if (action) action(trigger, event);
 });
 
+document.addEventListener("change", (event) => {
+  if (event.target.id === "quiz-engine") void applyEngine(event.target.value);
+});
+
 document.addEventListener("keydown", (event) => {
   if ((event.key === "Enter" || event.key === " ") && event.target.matches("[data-action='state-answer'], [data-action='city-answer']")) {
     event.preventDefault();
@@ -655,3 +693,4 @@ dialog.addEventListener("click", (event) => {
 });
 
 renderRegions();
+if (selectedEngine === "wasm") void applyEngine("wasm");
