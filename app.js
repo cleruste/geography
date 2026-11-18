@@ -1,5 +1,11 @@
-const { states, cities } = window.ATLAS_DATA;
-const playableStates = states.filter((state) => state.isState);
+const regionCatalog = {
+  us: { id: "us", name: "United States", continent: "North America", unit: "state", units: "states", singular: "state", plural: "states", data: window.ATLAS_DATA },
+  china: { id: "china", name: "China", continent: "Asia", unit: "province", units: "province-level regions", singular: "province", plural: "provinces", data: window.CHINA_ATLAS_DATA }
+};
+let activeRegion = regionCatalog.us;
+let states = activeRegion.data.states;
+let cities = activeRegion.data.cities;
+let playableStates = states.filter((state) => state.isState);
 const app = document.querySelector("#app");
 const dialog = document.querySelector("#info-dialog");
 const dialogContent = document.querySelector("#dialog-content");
@@ -43,7 +49,8 @@ function recordGame() {
   stats.totalCorrect += game.score;
   stats.bestStreak = Math.max(stats.bestStreak, game.bestStreak);
   stats.best = { states: 0, cities: 0, ...stats.best };
-  stats.best[game.mode] = Math.max(stats.best[game.mode] || 0, game.score);
+  const scoreKey = `${game.region}-${game.mode}`;
+  stats.best[scoreKey] = Math.max(stats.best[scoreKey] || 0, game.score);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch { /* The game also works with storage disabled. */ }
   updateHeaderStats();
 }
@@ -56,11 +63,11 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove("visible"), 2200);
 }
 
-function previewMap() {
+function previewMap(data = activeRegion.data) {
   return `
     <svg viewBox="0 -4 975 620" aria-hidden="true">
-      <g>${states.map((state) => `<path class="preview-state" d="${state.path}"/>`).join("")}</g>
-      <g>${cities.map((city) => `<circle class="preview-city" cx="${city.coordinates[0]}" cy="${city.coordinates[1]}" r="3.2"/>`).join("")}</g>
+      <g>${data.states.map((state) => `<path class="preview-state" d="${state.path}"/>`).join("")}</g>
+      <g>${data.cities.map((city) => `<circle class="preview-city" cx="${city.coordinates[0]}" cy="${city.coordinates[1]}" r="3.2"/>`).join("")}</g>
     </svg>`;
 }
 
@@ -70,6 +77,29 @@ function europeArt() {
 
 function chinaArt() {
   return `<svg viewBox="0 0 120 120" aria-hidden="true"><path d="m18 57 13-16 15 1 9-17 17 7 13-3 8 13 12 7-6 14 5 12-17 4-5 17-17-2-9 9-11-14-15 2-5-13-12-6 9-9Zm22-15 12 15-7 18 11 14m16-64-3 23 18 9 12-8M31 41l9 16-15 15m44-24-17 9 5 20 25 2M18 57l22 0"/></svg>`;
+}
+
+function setRegion(id) {
+  activeRegion = regionCatalog[id] || regionCatalog.us;
+  states = activeRegion.data.states;
+  cities = activeRegion.data.cities;
+  playableStates = states.filter((state) => state.isState);
+  selectedMode = "states";
+  mapView = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
+}
+
+function regionCard(id, number, data) {
+  const config = regionCatalog[id];
+  const count = data.states.filter((state) => state.isState).length;
+  const label = id === "china" ? "provinces" : "states";
+  return `<article class="region-card us-card ${id === "china" ? "china-card" : ""}">
+    <div class="region-card-content"><span class="region-number">${number} / ${config.continent.toUpperCase()}</span>
+      <span class="pill pill-ready">${icon("spark")} Available</span><h3>${config.name}</h3>
+      <p>Find ${label} and cities on the map.</p>
+      <div class="region-tags"><span class="region-tag">${count} ${label}</span><span class="region-tag">${data.cities.length} cities</span></div>
+      <button class="primary-button" data-action="select-region" data-region="${id}">Choose mode ${icon("arrow-right")}</button>
+    </div><div class="us-map-preview">${previewMap(data)}<span class="preview-caption">${config.name}</span></div>
+  </article>`;
 }
 
 function renderRegions() {
@@ -90,47 +120,18 @@ function renderRegions() {
       </section>
 
       <section aria-labelledby="region-heading">
-        <div class="section-heading"><h2 id="region-heading">Choose a region</h2><span>1 region available</span></div>
-        <div class="region-grid">
-          <article class="region-card us-card">
-            <div class="region-card-content">
-              <span class="region-number">01 / NORTH AMERICA</span>
-              <span class="pill pill-ready">${icon("spark")} Available</span>
-              <h3>United<br>States</h3>
-              <p>Find states and cities on the map.</p>
-              <div class="region-tags"><span class="region-tag">50 states</span><span class="region-tag">${cities.length} cities</span></div>
-              <button class="primary-button" data-action="select-region">Choose mode ${icon("arrow-right")}</button>
-            </div>
-            <div class="us-map-preview">${previewMap()}<span class="preview-caption">United States map</span></div>
-          </article>
-          <div class="coming-soon-column">
-            <article class="region-card small-region-card">
-              <div class="region-card-content">
-                <span class="region-number">02 / EUROPE</span>
-                <span class="pill pill-soon">${icon("lock")} Coming soon</span>
-                <h3>Europe</h3>
-                <p>Not yet available.</p>
-              </div>
-              <div class="small-region-art">${europeArt()}</div>
-            </article>
-            <article class="region-card small-region-card">
-              <div class="region-card-content">
-                <span class="region-number">03 / ASIA</span>
-                <span class="pill pill-soon">${icon("lock")} Coming soon</span>
-                <h3>China</h3>
-                <p>Not yet available.</p>
-              </div>
-              <div class="small-region-art">${chinaArt()}</div>
-            </article>
-          </div>
+        <div class="section-heading"><h2 id="region-heading">Choose a region</h2><span>2 regions available</span></div>
+        <div class="region-grid region-pair">
+          ${regionCard("us", "01", regionCatalog.us.data)}
+          ${regionCard("china", "02", regionCatalog.china.data)}
         </div>
-        <div class="more-regions">${icon("globe")} More regions coming soon.</div>
+        <div class="more-regions">${icon("globe")} Europe is not available yet.</div>
       </section>
 
       <section class="how-section" aria-labelledby="how-heading">
         <div class="section-heading"><h2 id="how-heading">How to play</h2><span>Three steps</span></div>
         <div class="how-grid">
-          <div class="how-step"><span class="step-number">01</span><div><h3>Choose a mode</h3><p>Choose states or cities.</p></div></div>
+          <div class="how-step"><span class="step-number">01</span><div><h3>Choose a mode</h3><p>Choose state or province mode, or city mode.</p></div></div>
           <div class="how-step"><span class="step-number">02</span><div><h3>Find the place</h3><p>Read the place name and select it on the map.</p></div></div>
           <div class="how-step"><span class="step-number">03</span><div><h3>Review the answer</h3><p>Labels appear after each answer.</p></div></div>
         </div>
@@ -147,16 +148,16 @@ function renderSetup() {
       <button class="back-link" data-action="home">${icon("arrow-left")} All regions</button>
       <section class="setup-heading">
         <div class="eyebrow">Choose a mode</div>
-        <h1>United <em>States</em></h1>
-        <p>Find states or cities on the map.</p>
+        <h1><em>${activeRegion.name}</em></h1>
+        <p>Choose ${activeRegion.plural} or cities.</p>
       </section>
       <div class="setup-grid">
         <div class="setup-map-card">
-          <span class="setup-map-label">${icon("map")} United States</span>
+          <span class="setup-map-label">${icon("map")} ${activeRegion.name}</span>
           ${previewMap()}
           <div class="setup-map-footer">
-            <div class="map-legend"><span class="legend-item"><i class="legend-line"></i>State boundary</span><span class="legend-item"><i class="legend-dot"></i>Major city</span></div>
-            <span>50 states · ${cities.length} cities</span>
+            <div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>Major city</span></div>
+            <span>${playableStates.length} ${activeRegion.plural} · ${cities.length} cities</span>
           </div>
         </div>
         <section class="mode-panel" aria-labelledby="mode-title">
@@ -165,7 +166,7 @@ function renderSetup() {
           <div class="mode-options">
             <button class="mode-option ${selectedMode === "states" ? "selected" : ""}" data-action="select-mode" data-mode="states" aria-pressed="${selectedMode === "states"}">
               <span class="mode-option-icon">${icon("map")}</span>
-              <span><strong>Find the state</strong><small>Locate the 50 states.</small></span>
+              <span><strong>Find a ${activeRegion.unit}</strong><small>Locate all ${playableStates.length} ${activeRegion.plural}.</small></span>
               <span class="mode-radio"></span>
             </button>
             <button class="mode-option ${selectedMode === "cities" ? "selected" : ""}" data-action="select-mode" data-mode="cities" aria-pressed="${selectedMode === "cities"}">
@@ -383,7 +384,7 @@ function quizMap(question) {
       <circle class="city-halo" cx="${x}" cy="${y}" r="11"/><circle class="city-hit" cx="${x}" cy="${y}" r="18"/><circle class="city-dot" cx="${x}" cy="${y}" r="3.4"/>
     </g>`;
   }).join("");
-  return `<svg class="quiz-map ${game.mode}-mode ${game.answered ? "map-answered" : ""}" viewBox="${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}" role="group" aria-label="Interactive map of the United States">
+  return `<svg class="quiz-map ${game.mode}-mode ${game.answered ? "map-answered" : ""}" viewBox="${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}" role="group" aria-label="Interactive map of ${activeRegion.name}">
     <g>${statePaths}</g><g>${cityMarkers}</g>${mapLabels(question)}
   </svg>`;
 }
@@ -392,6 +393,7 @@ function startGame(mode = selectedMode) {
   selectedMode = mode;
   const pool = mode === "states" ? playableStates : cities;
   game = {
+    region: activeRegion.id,
     mode,
     questions: shuffle(pool).slice(0, TOTAL_TURNS),
     turn: 0,
@@ -429,6 +431,8 @@ function answerLocation(id) {
 function renderQuiz() {
   currentView = "quiz";
   const question = game.questions[game.turn];
+  const locationLabel = game.mode === "states" ? activeRegion.unit : "city";
+  const locationPlural = game.mode === "states" ? activeRegion.plural : "cities";
   const latestAnswer = game.answers.at(-1);
   const isLastTurn = game.turn === TOTAL_TURNS - 1;
   const progress = Array.from({ length: TOTAL_TURNS }, (_, index) => {
@@ -444,12 +448,12 @@ function renderQuiz() {
   app.innerHTML = `
     <div class="page-shell view quiz-view">
       <div class="quiz-topbar">
-        <div class="quiz-title-group"><h1>United States</h1><span class="mode-badge">${icon(game.mode === "states" ? "map" : "pin")} ${game.mode} mode</span></div>
+        <div class="quiz-title-group"><h1>${activeRegion.name}</h1><span class="mode-badge">${icon(game.mode === "states" ? "map" : "pin")} ${locationPlural} mode</span></div>
         <button class="back-link" data-action="home">${icon("arrow-left")} Leave quiz</button>
       </div>
       <div class="game-grid">
         <section class="map-card" aria-label="Quiz map">
-          <div class="map-toolbar"><span class="map-instruction">${icon("target")} ${game.answered ? "Explore the revealed map" : `Click ${game.mode === "states" ? "a state" : "a red city dot"} to make your guess`}</span><span class="map-counter">United States / ${game.mode}</span></div>
+          <div class="map-toolbar"><span class="map-instruction">${icon("target")} ${game.answered ? "Explore the revealed map" : `Click ${game.mode === "states" ? `a ${activeRegion.unit}` : "a red city dot"} to answer`}</span><span class="map-counter">${activeRegion.name} / ${locationPlural}</span></div>
           <div class="map-canvas">
             ${quizMap(question)}
             <div class="map-zoom-controls" role="group" aria-label="Map zoom">
@@ -458,15 +462,15 @@ function renderQuiz() {
               <button class="map-zoom-button zoom-reset" data-action="zoom-reset">Full map</button>
             </div>
           </div>
-          <div class="map-bottom"><div class="map-legend"><span class="legend-item"><i class="legend-line"></i>State boundary</span><span class="legend-item"><i class="legend-dot"></i>Major city</span></div><span class="map-bottom-note">${game.answered ? "Labels revealed · Correct answer highlighted" : "Labels appear after your answer"}</span></div>
+          <div class="map-bottom"><div class="map-legend"><span class="legend-item"><i class="legend-line"></i>${activeRegion.unit} boundary</span><span class="legend-item"><i class="legend-dot"></i>Major city</span></div><span class="map-bottom-note">${game.answered ? "Labels revealed · Correct answer highlighted" : "Labels appear after your answer"}</span></div>
         </section>
         <aside class="question-column">
           <section class="question-card">
-            <div class="question-meta"><span>Question <strong>${String(game.turn + 1).padStart(2, "0")}</strong> of ${TOTAL_TURNS}</span><span>${game.mode === "states" ? "State finder" : "City finder"}</span></div>
+            <div class="question-meta"><span>Question <strong>${String(game.turn + 1).padStart(2, "0")}</strong> of ${TOTAL_TURNS}</span><span>${game.mode === "states" ? `${activeRegion.unit} finder` : "City finder"}</span></div>
             <div class="turn-progress" aria-label="Question ${game.turn + 1} of ${TOTAL_TURNS}">${progress}</div>
             <p class="question-kicker">Where is...</p>
             <h2 class="question-name">${question.name}</h2>
-            <p class="question-prompt">${game.mode === "states" ? "Find this state on the map and click its boundaries." : "Find the red dot for this city and click to place your answer."}</p>
+            <p class="question-prompt">${game.mode === "states" ? `Find ${activeRegion.unit} on the map.` : "Find the red city dot on the map."}</p>
             ${feedback}
             ${game.answered ? `<div class="question-action"><button class="primary-button" data-action="next-turn">${isLastTurn ? "See my results" : "Next question"} ${icon("arrow-right")}</button></div>` : `<div class="waiting-hint">${icon("clock")} Take your time — there's no timer</div>`}
           </section>
@@ -505,7 +509,7 @@ function renderResults() {
     <div class="page-shell view results-view">
       <section class="results-card">
         <div class="results-badge">${icon("trophy")}</div>
-        <div class="eyebrow">Round complete · United States</div>
+        <div class="eyebrow">Round complete · ${activeRegion.name}</div>
         <h1>${title}</h1>
         <p class="results-subtitle">${subtitle}</p>
         <div class="results-summary">
@@ -513,13 +517,13 @@ function renderResults() {
           <div class="result-stats">
             <div class="result-stat"><span>Accuracy</span><strong>${score * 10}%</strong></div>
             <div class="result-stat"><span>Best streak</span><strong>${game.bestStreak}</strong></div>
-            <div class="result-stat"><span>Mode</span><strong>${game.mode === "states" ? "States" : "Cities"}</strong></div>
+            <div class="result-stat"><span>Mode</span><strong>${game.mode === "states" ? activeRegion.plural : "Cities"}</strong></div>
             <div class="result-stat"><span>Places learned</span><strong>${score}</strong></div>
           </div>
         </div>
         <div class="result-actions">
           <button class="primary-button" data-action="play-again">${icon("refresh")} Play again</button>
-          <button class="secondary-button" data-action="switch-mode">${icon(game.mode === "states" ? "pin" : "map")} Try ${game.mode === "states" ? "cities" : "states"}</button>
+          <button class="secondary-button" data-action="switch-mode">${icon(game.mode === "states" ? "pin" : "map")} Try ${game.mode === "states" ? "cities" : activeRegion.plural}</button>
           <button class="text-button" data-action="home">Back to regions</button>
         </div>
         <div class="review-section">
@@ -537,7 +541,7 @@ function showHowTo() {
     <h2>How to play</h2>
     <p>There is no timer or sign-up.</p>
     <div class="dialog-steps">
-      <div class="dialog-step"><span class="dialog-step-number">1</span><div><strong>Choose a region and mode</strong><p>Choose the United States, then select its 50 states or ${cities.length} cities.</p></div></div>
+      <div class="dialog-step"><span class="dialog-step-number">1</span><div><strong>Choose a region and mode</strong><p>Choose ${activeRegion.name}, then select its ${playableStates.length} ${activeRegion.plural} or ${cities.length} cities.</p></div></div>
       <div class="dialog-step"><span class="dialog-step-number">2</span><div><strong>Select a location</strong><p>Each round has ten randomized questions. Click the matching state boundary or red city dot.</p></div></div>
       <div class="dialog-step"><span class="dialog-step-number">3</span><div><strong>Review your answer</strong><p>After every answer, all map labels appear and the correct location is highlighted. Your score is saved at the end of the round.</p></div></div>
     </div>`;
@@ -551,8 +555,9 @@ function showStats() {
     <h2>Your progress</h2>
     <p>Progress is saved in this browser.</p>
     <div class="stats-grid"><div class="stat-box"><strong>${stats.completed}</strong><span>Rounds</span></div><div class="stat-box"><strong>${stats.totalCorrect}</strong><span>Places found</span></div><div class="stat-box"><strong>${stats.bestStreak}</strong><span>Best streak</span></div></div>
-    <div class="best-score-row"><span>Best state round</span><strong>${stats.best?.states || 0} / 10</strong></div>
-    <div class="best-score-row"><span>Best city round</span><strong>${stats.best?.cities || 0} / 10</strong></div>
+    <div class="best-score-row"><span>Best US state round</span><strong>${stats.best?.["us-states"] || 0} / 10</strong></div>
+    <div class="best-score-row"><span>Best China province round</span><strong>${stats.best?.["china-states"] || 0} / 10</strong></div>
+    <div class="best-score-row"><span>Best city round</span><strong>${Math.max(stats.best?.["us-cities"] || 0, stats.best?.["china-cities"] || 0)} / 10</strong></div>
     ${stats.completed ? `<button class="text-button" data-action="reset-stats">Reset local progress</button>` : ""}`;
   dialog.showModal();
 }
@@ -562,7 +567,7 @@ const actions = {
   "zoom-in": () => zoomMap(0.75),
   "zoom-out": () => zoomMap(1 / 0.75),
   "zoom-reset": () => setMapView(),
-  "select-region": renderSetup,
+  "select-region": (element) => { setRegion(element.dataset.region); renderSetup(); },
   "select-mode": (element) => { selectedMode = element.dataset.mode; renderSetup(); },
   "start-quiz": () => startGame(),
   "state-answer": (element) => { if (game?.mode === "states") answerLocation(element.dataset.id); },

@@ -209,6 +209,7 @@ svg { display: block; }
 .section-heading h2 { margin: 0; font-size: 12px; letter-spacing: 1.7px; text-transform: uppercase; font-weight: 700; }
 .section-heading span { font-size: 12px; color: var(--ink-soft); }
 .region-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; }
+.region-grid.region-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .region-card { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; position: relative; }
 .us-card {
   min-height: 394px;
@@ -473,7 +474,7 @@ svg { display: block; }
   .main-nav { margin-left: auto; }
   .landing-hero { padding-top: 38px; align-items: flex-start; }
   .hero-note { display: none; }
-  .region-grid { grid-template-columns: 1fr; }
+  .region-grid, .region-grid.region-pair { grid-template-columns: 1fr; }
   .us-card { min-height: 360px; }
   .coming-soon-column { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
   .small-region-card { min-height: 175px; }

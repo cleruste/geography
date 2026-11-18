@@ -1,6 +1,6 @@
 # Atlas
 
-A static geography quiz covering US states and cities.
+A static geography quiz covering the United States and China.
 
 ## Run locally
 
@@ -19,6 +19,6 @@ Deploy the generated `dist` directory to any static host. No API keys, backend, 
 
 ## Gameplay
 
-Choose the United States, select **States** or **Cities**, and complete ten randomized questions. Click the matching state or red city dot. After each answer, the map reveals state and city names and highlights the correct location. Results and quiz counts are stored locally in the browser.
+Choose either region and select its provinces/states or cities mode. Each round has ten randomized questions. Click a boundary or red city dot; after each answer, labels appear and the correct location is highlighted. Results are stored locally in the browser.
 
-US state geometry is derived from `us-atlas` / US Census Bureau data and is included locally in `public/data/us-data.js`.
+US state geometry is derived from `us-atlas` / US Census Bureau data (`public/data/us-data.js`). China admin-1 boundaries are from geoBoundaries, licensed CC BY 4.0; attribution is in `public/data/CHINA-DATA-SOURCE.txt`.

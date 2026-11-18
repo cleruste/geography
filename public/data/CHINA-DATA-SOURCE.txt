@@ -1,0 +1,8 @@
+China administrative boundaries
+
+Source: geoBoundaries, geoBoundaries-CHN-ADM1 (ADM1 level), version 5.0.0.
+Source file: https://github.com/wmgeolab/geoBoundaries/blob/main/releaseData/gbOpen/CHN/ADM1/geoBoundaries-CHN-ADM1.geojson
+Downloaded from: https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/main/releaseData/gbOpen/CHN/ADM1/geoBoundaries-CHN-ADM1.geojson
+License: Creative Commons Attribution 4.0 International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+
+The province-level boundaries were projected for the map using a China-centered conic equal-area projection. Province capital and major city coordinates are maintained as quiz content in china-data.js.
